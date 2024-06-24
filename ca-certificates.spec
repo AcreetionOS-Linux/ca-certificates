@@ -35,10 +35,10 @@ Name: ca-certificates
 # to have increasing version numbers. However, the new scheme will work, 
 # because all future versions will start with 2013 or larger.)
 
-Version: 2023.2.62_v7.0.401
+Version: 2024.2.68_v8.0.302
 # for Rawhide, please always use release >= 2
 # for Fedora release branches, please use release < 2 (1.0, 1.1, ...)
-Release: 6%{?dist}
+Release: 2%{?dist}
 License: MIT AND GPL-2.0-or-later
 
 URL: https://fedoraproject.org/wiki/CA-Certificates
@@ -404,6 +404,37 @@ fi
 
 
 %changelog
+*Tue Jun 18 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.68_v8.0.302-2
+- Update to CKBI 2.68_v8.0.302 from NSS 3.101
+-    Removing:
+-     # Certificate "Verisign Class 1 Public Primary Certification Authority - G3"
+-     # Certificate "Verisign Class 2 Public Primary Certification Authority - G3"
+-     # Certificate "Security Communication Root CA"
+-     # Certificate "Autoridad de Certificacion Firmaprofesional CIF A62634068"
+-     # Certificate "Symantec Class 1 Public Primary Certification Authority - G6"
+-     # Certificate "Symantec Class 2 Public Primary Certification Authority - G6"
+-     # Certificate "TrustCor RootCert CA-1"
+-     # Certificate "TrustCor RootCert CA-2"
+-     # Certificate "TrustCor ECA-1"
+-    Adding:
+-     # Certificate "TrustAsia Global Root CA G3"
+-     # Certificate "TrustAsia Global Root CA G4"
+-     # Certificate "CommScope Public Trust ECC Root-01"
+-     # Certificate "CommScope Public Trust ECC Root-02"
+-     # Certificate "CommScope Public Trust RSA Root-01"
+-     # Certificate "CommScope Public Trust RSA Root-02"
+-     # Certificate "D-Trust SBR Root CA 1 2022"
+-     # Certificate "D-Trust SBR Root CA 2 2022"
+-     # Certificate "Telekom Security SMIME ECC Root 2021"
+-     # Certificate "Telekom Security TLS ECC Root 2020"
+-     # Certificate "Telekom Security SMIME RSA Root 2023"
+-     # Certificate "Telekom Security TLS RSA Root 2023"
+-     # Certificate "FIRMAPROFESIONAL CA ROOT-A WEB"
+-     # Certificate "SECOM Trust.net"
+-     # Certificate "VeriSign Class 2 Public Primary Certification Authority - G3"
+-     # Certificate "SSL.com Code Signing RSA Root CA 2022"
+-     # Certificate "SSL.com Code Signing ECC Root CA 2022"
+
 * Tue Jan 23 2024 Fedora Release Engineering <releng@fedoraproject.org> - 2023.2.62_v7.0.401-6
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_40_Mass_Rebuild
 
