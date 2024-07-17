@@ -38,7 +38,7 @@ Name: ca-certificates
 Version: 2024.2.68_v8.0.302
 # for Rawhide, please always use release >= 2
 # for Fedora release branches, please use release < 2 (1.0, 1.1, ...)
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: MIT AND GPL-2.0-or-later
 
 URL: https://fedoraproject.org/wiki/CA-Certificates
@@ -404,6 +404,9 @@ fi
 
 
 %changelog
+* Wed Jul 17 2024 Fedora Release Engineering <releng@fedoraproject.org> - 2024.2.68_v8.0.302-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_41_Mass_Rebuild
+
 *Tue Jun 18 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.68_v8.0.302-2
 - Update to CKBI 2.68_v8.0.302 from NSS 3.101
 -    Removing:
