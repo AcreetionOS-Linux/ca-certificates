@@ -190,7 +190,7 @@ mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/source/anchors
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/source/blocklist
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem
-mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
+mkdir -p -m 555 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/openssl
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/java
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/edk2
@@ -280,6 +280,14 @@ else
 fi
 
 mkdir -p "$trust_module_dir"
+
+# It is unlikely that the directory would contain any files on a build system,
+# but let's make sure just in case.
+if [ -n "$(ls -A "$trust_module_dir")" ]; then
+        echo "Directory $trust_module_dir is not empty. Aborting build!"
+        exit 1
+fi
+
 trust_module_config=$trust_module_dir/%{name}-p11-kit-trust.module
 cat >"$trust_module_config" <<EOF
 module: p11-kit-trust.so
@@ -291,8 +299,16 @@ trust extract --format=pem-directory-hash --filter=ca-anchors --overwrite \
       --purpose server-auth \
       $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
 
+# Create a temporary file with the list of (%ghost )files in the directory-hash.
+find $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash -type f,l > .files.txt
+sed -i "s|^$RPM_BUILD_ROOT|%ghost /|" .files.txt
 # Clean up the temporary module config.
 rm -f "$trust_module_config"
+
+
+%clean
+/usr/bin/chmod u+w $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
+rm -rf $RPM_BUILD_ROOT
 
 %pre
 if [ $1 -gt 1 ] ; then
@@ -366,7 +382,8 @@ fi
 %{_bindir}/ca-legacy install
 %{_bindir}/update-ca-trust
 
-%files
+# The file .files.txt contains the list of (%ghost )files in the directory-hash
+%files -f .files.txt
 %dir %{_sysconfdir}/ssl
 %dir %{pkidir}/tls
 %dir %{pkidir}/tls/certs
@@ -384,6 +401,7 @@ fi
 %dir %{_datadir}/pki/ca-trust-source/anchors
 %dir %{_datadir}/pki/ca-trust-source/blocklist
 %dir %{_datadir}/pki/ca-trust-legacy
+%dir %{catrustdir}/extracted/pem/directory-hash
 
 %config(noreplace) %{catrustdir}/ca-legacy.conf
 
@@ -395,7 +413,6 @@ fi
 %{catrustdir}/extracted/java/README
 %{catrustdir}/extracted/openssl/README
 %{catrustdir}/extracted/pem/README
-%{catrustdir}/extracted/pem/directory-hash
 %{catrustdir}/extracted/edk2/README
 %{catrustdir}/source/README
 
@@ -428,9 +445,14 @@ fi
 %ghost %{catrustdir}/extracted/openssl/%{openssl_format_trust_bundle}
 %ghost %{catrustdir}/extracted/%{java_bundle}
 %ghost %{catrustdir}/extracted/edk2/cacerts.bin
-
+%ghost %{catrustdir}/extracted/pem/directory-hash/ca-bundle.crt
+%ghost %{catrustdir}/extracted/pem/directory-hash/ca-certificates.crt
 
 %changelog
+*Tue Aug 27 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.303-5
+- Temporarily generate the directory-hash files in %%install ...(next item)
+- Add list of ghost files from directory-hash to %%files
+
 *Mon Jul 29 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.68_v8.0.302-5
 - Add libffi to required packages
 
