@@ -190,7 +190,7 @@ mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/source/anchors
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/source/blocklist
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem
-mkdir -p -m 555 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
+mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/openssl
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/java
 mkdir -p -m 755 $RPM_BUILD_ROOT%{catrustdir}/extracted/edk2
@@ -266,6 +266,33 @@ ln -s %{catrustdir}/extracted/openssl/%{openssl_format_trust_bundle} \
 ln -s %{catrustdir}/extracted/%{java_bundle} \
     $RPM_BUILD_ROOT%{pkidir}/%{java_bundle}
 
+# Populate %%{catrustdir}/extracted/pem/directory-hash.
+#
+# First direct p11-kit-trust.so to the generated bundle (not the one
+# already present on the build system) with an overriding module
+# config. Note that we have to use a different config path based on
+# the current user: if root, ~/.config/pkcs11/modules/* are not read,
+# while if a regular user, she can't write to /etc.
+if test "$(id -u)" -eq 0; then
+   trust_module_dir=/etc/pkcs11/modules
+else
+   trust_module_dir=$HOME/.config/pkcs11/modules
+fi
+
+mkdir -p "$trust_module_dir"
+trust_module_config=$trust_module_dir/%{name}-p11-kit-trust.module
+cat >"$trust_module_config" <<EOF
+module: p11-kit-trust.so
+trust-policy: yes
+x-init-reserved: paths='$RPM_BUILD_ROOT%{_datadir}/pki/ca-trust-source'
+EOF
+
+trust extract --format=pem-directory-hash --filter=ca-anchors --overwrite \
+      --purpose server-auth \
+      $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
+
+# Clean up the temporary module config.
+rm -f "$trust_module_config"
 
 %pre
 if [ $1 -gt 1 ] ; then
