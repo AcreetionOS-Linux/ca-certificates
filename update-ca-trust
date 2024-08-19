@@ -19,7 +19,7 @@ usage() {
 		Update the system trust store in $DEST.
 
 		COMMANDS
-		(absent/empty command): Same as the extract command described below.
+		(absent/empty command): Same as the extract command without arguments.
 
 		extract: Instruct update-ca-trust to scan the source configuration in
 		/usr/share/pki/ca-trust-source and /etc/pki/ca-trust/source and produce
@@ -42,6 +42,11 @@ extract() {
         while [ $# -ne 0 ]; do
 	    case "$1" in
 	      "-o"|"--output")
+		  if [ $# -lt 2 ]; then
+			  echo >&2 "Error: missing argument for '$1' option. See 'update-ca-trust --help' for usage."
+			  echo >&2
+			  exit 1
+		  fi
 	          USER_DEST=$2
 		  shift 2
 		  continue
@@ -51,7 +56,7 @@ extract() {
 		  break
 		  ;;
 		*)
-		  usage
+		  echo >&2 "Error: unknown extract argument '$1'. See 'update-ca-trust --help' for usage."
 		  exit 1
 		  ;;
 	    esac
@@ -98,6 +103,7 @@ extract() {
 	    /usr/bin/chmod u-w "$DEST/pem/directory-hash"
         fi
 }
+
 if [ $# -lt 1 ]; then
     set -- extract
 fi
@@ -105,16 +111,14 @@ fi
 case "$1" in
 	"extract")
 		shift
-		extract $@
+		extract "$@"
 	;;
-	"--"*|"-"*)
-		# First parameter seems to be an option, assume the command is 'extract'
-		extract $@
+	"--help")
+		usage
+		exit 0
 	;;
 	*)
-		echo >&2 "Error: Unknown command: $1"
-		echo >&2
-		usage
+		echo >&2 "Error: unknown command: '$1', see 'update-ca-trust --help' for usage."
 		exit 1
 	;;
 esac

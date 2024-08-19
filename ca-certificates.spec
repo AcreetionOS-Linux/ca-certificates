@@ -450,6 +450,9 @@ fi
 
 %changelog
 *Tue Aug 27 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.303-5
+- update-ca-trust: return warnings on a unsupported argument instead of error
+
+*Tue Aug 27 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.303-5
 - Temporarily generate the directory-hash files in %%install ...(next item)
 - Add list of ghost files from directory-hash to %%files
 
