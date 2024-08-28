@@ -1,7 +1,6 @@
 %define pkidir %{_sysconfdir}/pki
 %define catrustdir %{_sysconfdir}/pki/ca-trust
 %define classic_tls_bundle ca-bundle.crt
-%define openssl_format_trust_bundle ca-bundle.trust.crt
 %define p11_format_bundle ca-bundle.trust.p11-kit
 %define legacy_default_bundle ca-bundle.legacy.default.crt
 %define legacy_disable_bundle ca-bundle.legacy.disable.crt
@@ -239,32 +238,10 @@ touch $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/email-ca-bundle.pem
 chmod 444 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/email-ca-bundle.pem
 touch $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/objsign-ca-bundle.pem
 chmod 444 $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/objsign-ca-bundle.pem
-touch $RPM_BUILD_ROOT%{catrustdir}/extracted/openssl/%{openssl_format_trust_bundle}
-chmod 444 $RPM_BUILD_ROOT%{catrustdir}/extracted/openssl/%{openssl_format_trust_bundle}
 touch $RPM_BUILD_ROOT%{catrustdir}/extracted/%{java_bundle}
 chmod 444 $RPM_BUILD_ROOT%{catrustdir}/extracted/%{java_bundle}
 touch $RPM_BUILD_ROOT%{catrustdir}/extracted/edk2/cacerts.bin
 chmod 444 $RPM_BUILD_ROOT%{catrustdir}/extracted/edk2/cacerts.bin
-
-# /etc/ssl is provided in a Debian compatible form for (bad) code that
-# expects it: https://bugzilla.redhat.com/show_bug.cgi?id=1053882
-ln -s %{catrustdir}/extracted/pem/directory-hash \
-    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/certs
-ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
-    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/cert.pem
-ln -s /etc/pki/tls/openssl.cnf \
-    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/openssl.cnf
-ln -s /etc/pki/tls/ct_log_list.cnf \
-    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/ct_log_list.cnf
-# legacy filenames
-ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
-    $RPM_BUILD_ROOT%{pkidir}/tls/cert.pem
-ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
-    $RPM_BUILD_ROOT%{pkidir}/tls/certs/%{classic_tls_bundle}
-ln -s %{catrustdir}/extracted/openssl/%{openssl_format_trust_bundle} \
-    $RPM_BUILD_ROOT%{pkidir}/tls/certs/%{openssl_format_trust_bundle}
-ln -s %{catrustdir}/extracted/%{java_bundle} \
-    $RPM_BUILD_ROOT%{pkidir}/%{java_bundle}
 
 # Populate %%{catrustdir}/extracted/pem/directory-hash.
 #
@@ -295,16 +272,39 @@ trust-policy: yes
 x-init-reserved: paths='$RPM_BUILD_ROOT%{_datadir}/pki/ca-trust-source'
 EOF
 
+# Extract the trust anchors to the directory-hash format.
 trust extract --format=pem-directory-hash --filter=ca-anchors --overwrite \
-      --purpose server-auth \
-      $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
+              --purpose server-auth \
+              $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
 
-# Create a temporary file with the list of (%ghost )files in the directory-hash.
-find $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash -type f,l > .files.txt
-sed -i "s|^$RPM_BUILD_ROOT|%ghost /|" .files.txt
 # Clean up the temporary module config.
 rm -f "$trust_module_config"
 
+find $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash -type l \
+     -regextype posix-extended -regex '.*/[0-9a-f]{8}\.[0-9]+' \
+     -exec cp -P {} $RPM_BUILD_ROOT%{pkidir}/tls/certs/ \;
+# Create a temporary file with the list of (%ghost )files in the directory-hash and their copies
+find $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash -type f,l > .files.txt
+find $RPM_BUILD_ROOT%{pkidir}/tls/certs -type l -regextype posix-extended \
+     -regex '.*/[0-9a-f]{8}\.[0-9]+' >> .files.txt
+
+sed -i "s|^$RPM_BUILD_ROOT|%ghost /|" .files.txt
+
+# /etc/ssl is provided in a Debian compatible form for (bad) code that
+# expects it: https://bugzilla.redhat.com/show_bug.cgi?id=1053882
+ln -s %{pkidir}/tls/certs \
+    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/certs
+ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
+    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/cert.pem
+ln -s /etc/pki/tls/openssl.cnf \
+    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/openssl.cnf
+ln -s /etc/pki/tls/ct_log_list.cnf \
+    $RPM_BUILD_ROOT%{_sysconfdir}/ssl/ct_log_list.cnf
+# legacy filenames
+ln -s %{catrustdir}/extracted/%{java_bundle} \
+    $RPM_BUILD_ROOT%{pkidir}/%{java_bundle}
+ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
+    $RPM_BUILD_ROOT%{pkidir}/tls/certs/%{classic_tls_bundle}
 
 %clean
 /usr/bin/chmod u+w $RPM_BUILD_ROOT%{catrustdir}/extracted/pem/directory-hash
@@ -312,6 +312,10 @@ rm -rf $RPM_BUILD_ROOT
 
 %pre
 if [ $1 -gt 1 ] ; then
+  # Remove the old symlinks
+  rm -f %{pkidir}/tls/cert.pem
+  rm -f %{pkidir}/tls/certs/ca-bundle.trust.crt
+
   # Upgrade or Downgrade.
   # If the classic filename is a regular file, then we are upgrading
   # from an old package and we will move it to an .rpmsave backup file.
@@ -340,17 +344,6 @@ if [ $1 -gt 1 ] ; then
       if ! test -L %{pkidir}/tls/certs/%{classic_tls_bundle}; then
         # it's an old regular file, not a link
         mv -f %{pkidir}/tls/certs/%{classic_tls_bundle} %{pkidir}/tls/certs/%{classic_tls_bundle}.rpmsave
-      fi
-    fi
-  fi
-
-  if ! test -e %{pkidir}/tls/certs/%{openssl_format_trust_bundle}.rpmsave; then
-    # no backup yet
-    if test -e %{pkidir}/tls/certs/%{openssl_format_trust_bundle}; then
-      # a file exists
-      if ! test -L %{pkidir}/tls/certs/%{openssl_format_trust_bundle}; then
-        # it's an old regular file, not a link
-        mv -f %{pkidir}/tls/certs/%{openssl_format_trust_bundle} %{pkidir}/tls/certs/%{openssl_format_trust_bundle}.rpmsave
       fi
     fi
   fi
@@ -417,9 +410,7 @@ fi
 %{catrustdir}/source/README
 
 # symlinks for old locations
-%{pkidir}/tls/cert.pem
 %{pkidir}/tls/certs/%{classic_tls_bundle}
-%{pkidir}/tls/certs/%{openssl_format_trust_bundle}
 %{pkidir}/%{java_bundle}
 # Hybrid hash directory with bundle file for Debian compatibility
 # See https://bugzilla.redhat.com/show_bug.cgi?id=1053882
@@ -442,13 +433,14 @@ fi
 %ghost %{catrustdir}/extracted/pem/tls-ca-bundle.pem
 %ghost %{catrustdir}/extracted/pem/email-ca-bundle.pem
 %ghost %{catrustdir}/extracted/pem/objsign-ca-bundle.pem
-%ghost %{catrustdir}/extracted/openssl/%{openssl_format_trust_bundle}
 %ghost %{catrustdir}/extracted/%{java_bundle}
 %ghost %{catrustdir}/extracted/edk2/cacerts.bin
-%ghost %{catrustdir}/extracted/pem/directory-hash/ca-bundle.crt
-%ghost %{catrustdir}/extracted/pem/directory-hash/ca-certificates.crt
 
 %changelog
+*Wed Aug 28 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.303-5
+- update-ca-trust: copy directory-hash symlinks to /etc/pki/tls/certs
+- Remove /etc/pki/tls/cert.pem symlink so that it isn't loaded by default
+
 *Tue Aug 27 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.303-5
 - update-ca-trust: return warnings on a unsupported argument instead of error
 

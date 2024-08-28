@@ -8,6 +8,7 @@ set -eu
 # files in $DEST.
 
 DEST=/etc/pki/ca-trust/extracted
+DEST_CERTS=/etc/pki/tls/certs
 
 # Prevent p11-kit from reading user configuration files.
 export P11_KIT_NO_USER_CONFIG=1
@@ -28,7 +29,8 @@ usage() {
 
 		EXTRACT OPTIONS
 		-o DIR, --output=DIR: Write the extracted trust store into the given
-		directory instead of updating $DEST.
+		directory instead of updating $DEST. (Note: This option will not
+		populate the ../pki/tls/certs with the directory-hash symbolic links.)
 	EOF
 }
 
@@ -73,9 +75,15 @@ extract() {
 		    "$DEST"/edk2
 	fi
 
+
+	# Delete all directory hash symlinks from the cert directory
+	if [ -z "$USER_DEST" ]; then
+		find "$DEST_CERTS" -type l -regextype posix-extended \
+		     -regex '.*/[0-9a-f]{8}\.[0-9]+' -exec rm -f {} \;
+	fi
+
 	# OpenSSL PEM bundle that includes trust flags
 	# (BEGIN TRUSTED CERTIFICATE)
-	/usr/bin/trust extract --format=openssl-bundle --filter=certificates --overwrite --comment "$DEST/openssl/ca-bundle.trust.crt"
 	/usr/bin/trust extract --format=pem-bundle --filter=ca-anchors --overwrite --comment --purpose server-auth "$DEST/pem/tls-ca-bundle.pem"
 	/usr/bin/trust extract --format=pem-bundle --filter=ca-anchors --overwrite --comment --purpose email "$DEST/pem/email-ca-bundle.pem"
 	/usr/bin/trust extract --format=pem-bundle --filter=ca-anchors --overwrite --comment --purpose code-signing "$DEST/pem/objsign-ca-bundle.pem"
@@ -85,25 +93,16 @@ extract() {
 	# by GnuTLS)
 	/usr/bin/trust extract --format=pem-directory-hash --filter=ca-anchors --overwrite --purpose server-auth "$DEST/pem/directory-hash"
 
-	# p11-kit extract will have made this directory unwritable; when run with
-	# CAP_DAC_OVERRIDE this does not matter, but in container use cases that may
-	# not be the case. See rhbz#2241240.
-	if [ -n "$USER_DEST" ]; then
-	    /usr/bin/chmod u+w "$DEST/pem/directory-hash"
-        fi
 
-	# Debian compatibility: their /etc/ssl/certs has this bundle
-	/usr/bin/ln -s ../tls-ca-bundle.pem "$DEST/pem/directory-hash/ca-certificates.crt"
-	# Backwards compatibility: RHEL/Fedora provided a /etc/ssl/certs/ca-bundle.crt
-	# since https://bugzilla.redhat.com/show_bug.cgi?id=572725
-	/usr/bin/ln -s ../tls-ca-bundle.pem "$DEST/pem/directory-hash/ca-bundle.crt"
-
-	# Remove write permissions again
-	if [ -n "$USER_DEST" ]; then
-	    /usr/bin/chmod u-w "$DEST/pem/directory-hash"
-        fi
+	if [ -z "$USER_DEST" ]; then
+		find "$DEST/pem/directory-hash" -type l -regextype posix-extended \
+		     -regex '.*/[0-9a-f]{8}\.[0-9]+' | while read link; do
+			target=$(readlink -f "$link")
+			new_link="$DEST_CERTS/$(basename "$link")"
+			ln -s "$target" "$new_link"
+		done
+	fi
 }
-
 if [ $# -lt 1 ]; then
     set -- extract
 fi
