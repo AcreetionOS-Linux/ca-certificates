@@ -34,10 +34,10 @@ Name: ca-certificates
 # to have increasing version numbers. However, the new scheme will work, 
 # because all future versions will start with 2013 or larger.)
 
-Version: 2024.2.68_v8.0.302
+Version: 2024.2.69_v8.0.401
 # for Rawhide, please always use release >= 2
 # for Fedora release branches, please use release < 2 (1.0, 1.1, ...)
-Release: 5%{?dist}
+Release: 1%{?dist}
 License: MIT AND GPL-2.0-or-later
 
 URL: https://fedoraproject.org/wiki/CA-Certificates
@@ -437,6 +437,12 @@ fi
 %ghost %{catrustdir}/extracted/edk2/cacerts.bin
 
 %changelog
+*Mon Sep 23 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.401-1
+- Update to CKBI 2.69_v8.0.401 from NSS 3.103
+-    Adding:
+-     # Certificate "Sectigo Public Code Signing Root R46"
+-     # Certificate "Sectigo Public Code Signing Root E46"
+
 *Wed Aug 28 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.303-5
 - update-ca-trust: copy directory-hash symlinks to /etc/pki/tls/certs
 - Remove /etc/pki/tls/cert.pem symlink so that it isn't loaded by default
