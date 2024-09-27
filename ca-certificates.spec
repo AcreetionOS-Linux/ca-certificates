@@ -37,7 +37,7 @@ Name: ca-certificates
 Version: 2024.2.69_v8.0.401
 # for Rawhide, please always use release >= 2
 # for Fedora release branches, please use release < 2 (1.0, 1.1, ...)
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: MIT AND GPL-2.0-or-later
 
 URL: https://fedoraproject.org/wiki/CA-Certificates
@@ -65,6 +65,7 @@ Source19: README.etcssl
 BuildArch: noarch
 
 Requires(post): bash
+Requires(post): findutils
 Requires(post): grep
 Requires(post): sed
 Requires(post): coreutils
@@ -437,6 +438,10 @@ fi
 %ghost %{catrustdir}/extracted/edk2/cacerts.bin
 
 %changelog
+*Fri Sep 27 2024 Michel Lind <salimma@fedoraproject.org> - 2024.2.69_v8.0.401-2
+- Add missing Requires(post) on findutils for update-ca-trust
+- Fixes: RHBZ#2315320
+
 *Mon Sep 23 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.401-1
 - Update to CKBI 2.69_v8.0.401 from NSS 3.103
 -    Adding:
