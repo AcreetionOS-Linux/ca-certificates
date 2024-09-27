@@ -37,7 +37,7 @@ Name: ca-certificates
 Version: 2024.2.69_v8.0.401
 # for Rawhide, please always use release >= 2
 # for Fedora release branches, please use release < 2 (1.0, 1.1, ...)
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: MIT AND GPL-2.0-or-later
 
 URL: https://fedoraproject.org/wiki/CA-Certificates
@@ -302,6 +302,8 @@ ln -s /etc/pki/tls/openssl.cnf \
 ln -s /etc/pki/tls/ct_log_list.cnf \
     $RPM_BUILD_ROOT%{_sysconfdir}/ssl/ct_log_list.cnf
 # legacy filenames
+ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
+    $RPM_BUILD_ROOT%{pkidir}/tls/cert.pem
 ln -s %{catrustdir}/extracted/%{java_bundle} \
     $RPM_BUILD_ROOT%{pkidir}/%{java_bundle}
 ln -s %{catrustdir}/extracted/pem/tls-ca-bundle.pem \
@@ -314,7 +316,6 @@ rm -rf $RPM_BUILD_ROOT
 %pre
 if [ $1 -gt 1 ] ; then
   # Remove the old symlinks
-  rm -f %{pkidir}/tls/cert.pem
   rm -f %{pkidir}/tls/certs/ca-bundle.trust.crt
 
   # Upgrade or Downgrade.
@@ -411,6 +412,7 @@ fi
 %{catrustdir}/source/README
 
 # symlinks for old locations
+%{pkidir}/tls/cert.pem
 %{pkidir}/tls/certs/%{classic_tls_bundle}
 %{pkidir}/%{java_bundle}
 # Hybrid hash directory with bundle file for Debian compatibility
@@ -438,6 +440,9 @@ fi
 %ghost %{catrustdir}/extracted/edk2/cacerts.bin
 
 %changelog
+*Fri Sep 27 2024 Frantisek Krenzelok <fkrenzel@redhat.com> - 2024.2.69_v8.0.401-3
+- Bring back /etc/pki/tls/cert.pem
+
 *Fri Sep 27 2024 Michel Lind <salimma@fedoraproject.org> - 2024.2.69_v8.0.401-2
 - Add missing Requires(post) on findutils for update-ca-trust
 - Fixes: RHBZ#2315320
